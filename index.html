@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kafe Realtime Marketing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <nav class="bg-black text-white p-4 flex justify-between items-center shadow-lg">
+        <h1 class="font-bold tracking-tighter italic">SUGIBAN CAFE</h1>
+        <div class="flex gap-2">
+            <button onclick="switchView('admin')" class="text-[10px] bg-zinc-800 px-3 py-1 rounded">ADMIN</button>
+            <button onclick="window.location.search = '?id=titik1'" class="text-[10px] bg-zinc-800 px-3 py-1 rounded">TEST USER</button>
+        </div>
+    </nav>
+
+    <main id="admin-view" class="p-4 max-w-4xl mx-auto hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border">
+                <h2 class="font-bold mb-4 flex justify-between items-center">
+                    Titik Konvoi 
+                    <span id="total-titik" class="text-xs bg-gray-100 px-2 py-1 rounded">0</span>
+                </h2>
+                <div id="location-container" class="space-y-4"></div>
+                <button onclick="addNewLocation()" class="w-full mt-4 border-2 border-dashed border-gray-300 py-3 rounded-xl text-gray-500 hover:bg-gray-50 text-sm">+ Tambah Titik Baru</button>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border">
+                <h2 class="font-bold mb-4">Daftar Menu Hadiah</h2>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="menu-input" placeholder="Nama menu..." class="flex-1 border rounded-lg px-3 py-2 text-sm">
+                    <button onclick="addMenu()" class="bg-black text-white px-4 py-2 rounded-lg text-sm">Tambah</button>
+                </div>
+                <ul id="menu-list" class="divide-y text-sm"></ul>
+            </div>
+        </div>
+    </main>
+
+    <main id="user-view" class="hidden p-6 flex items-center justify-center min-h-[80vh]">
+        <div id="user-card" class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden text-center border">
+            </div>
+    </main>
+
+    <script>
+        // 1. GANTI INI DENGAN DATA DARI FIREBASE KAMU
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8DUOY0lUMMAAhIGamREtV9GoQVnLwhfQ",
+            authDomain: "gachamenu-b46e2.firebaseapp.com",
+            databaseURL: "https://gachamenu-b46e2-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "gachamenu-b46e2",
+            storageBucket: "gachamenu-b46e2.firebasestorage.app",
+            messagingSenderId: "500919769738",
+            appId: "1:500919769738:web:16c4ba211a8da6dd752b73"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Variabel Global
+        const urlParams = new URLSearchParams(window.location.search);
+        const titikId = urlParams.get('id');
+
+        // ROUTING LOGIC
+        if (titikId) {
+            switchView('user');
+            processUserScan(titikId);
+        } else {
+            switchView('admin');
+            initAdminMonitoring();
+        }
+
+        function switchView(view) {
+            document.getElementById('admin-view').classList.toggle('hidden', view !== 'admin');
+            document.getElementById('user-view').classList.toggle('hidden', view !== 'user');
+        }
+
+        // --- ADMIN FUNCTIONS ---
+        function initAdminMonitoring() {
+            // Listen Realtime Lokasi
+            db.ref('locations').on('value', (snapshot) => {
+                const data = snapshot.val();
+                const container = document.getElementById('location-container');
+                container.innerHTML = '';
+                if(data) {
+                    Object.keys(data).forEach(key => {
+                        const loc = data[key];
+                        container.innerHTML += `
+                            <div class="p-4 bg-gray-50 rounded-xl border relative">
+                                <button onclick="deleteLocation('${key}')" class="absolute top-2 right-2 text-gray-300 hover:text-red-500">×</button>
+                                <p class="text-xs font-bold uppercase text-gray-400">${key}</p>
+                                <p class="text-lg font-bold">${loc.name}</p>
+                                <div class="flex items-end justify-between mt-2">
+                                    <h3 class="text-3xl font-mono">${loc.count} <span class="text-gray-300 text-sm">/ ${loc.max}</span></h3>
+                                    <button onclick="resetCounter('${key}')" class="text-[10px] bg-white border px-2 py-1 rounded shadow-sm">RESET</button>
+                                </div>
+                                <p class="text-[9px] mt-2 text-blue-500 break-all select-all">URL: ${window.location.origin}${window.location.pathname}?id=${key}</p>
+                            </div>
+                        `;
+                    });
+                }
+            });
+
+            // Listen Realtime Menu
+            db.ref('menus').on('value', (snapshot) => {
+                const menus = snapshot.val();
+                const list = document.getElementById('menu-list');
+                list.innerHTML = '';
+                if(menus) {
+                    Object.keys(menus).forEach(key => {
+                        list.innerHTML += `<li class="py-2 flex justify-between capitalize">${menus[key]} <button onclick="deleteMenu('${key}')" class="text-red-400 text-xs">Hapus</button></li>`;
+                    });
+                }
+            });
+        }
+
+        function addNewLocation() {
+            const name = prompt("Nama Lokasi (misal: Bundaran HI):");
+            const id = prompt("ID Unik (misal: titik1):");
+            if (name && id) {
+                db.ref('locations/' + id).set({ name: name, count: 0, max: 10 });
+            }
+        }
+
+        function deleteLocation(id) { if(confirm('Hapus titik ini?')) db.ref('locations/' + id).remove(); }
+        function resetCounter(id) { db.ref('locations/' + id + '/count').set(0); }
+        function addMenu() {
+            const val = document.getElementById('menu-input').value;
+            if(val) { db.ref('menus').push(val); document.getElementById('menu-input').value = ''; }
+        }
+        function deleteMenu(key) { db.ref('menus/' + key).remove(); }
+
+        // --- USER FUNCTIONS (REALTIME LOGIC) ---
+        function processUserScan(id) {
+            const card = document.getElementById('user-card');
+            
+            db.ref('locations/' + id).transaction((currentData) => {
+                if (currentData === null) return currentData; // Titik tidak ditemukan
+
+                if (currentData.count < currentData.max) {
+                    // Masih ada kuota
+                    currentData.count++;
+                    return currentData;
+                } else {
+                    return; // Abort transaction (kuota habis)
+                }
+            }, (error, committed, snapshot) => {
+                if (committed) {
+                    // AMBIL MENU ACAK
+                    db.ref('menus').once('value', (menuSnap) => {
+                        const menus = Object.values(menuSnap.val() || {0: "Iced Coffee"});
+                        const randomMenu = menus[Math.floor(Math.random() * menus.length)];
+                        showWinPage(randomMenu);
+                    });
+                } else {
+                    showFullPage();
+                }
+            });
+        }
+
+        function showWinPage(menu) {
+            document.getElementById('user-card').innerHTML = `
+                <div class="bg-black p-6 text-white text-xs tracking-widest uppercase">KAFE KAMI - GRAND OPENING</div>
+                <div class="p-8">
+                    <div class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-3 py-1 rounded-full mb-4 uppercase">Kuota Tersedia</div>
+                    <p class="text-gray-500 text-xs uppercase mb-1">Selamat! Kamu mendapatkan:</p>
+                    <div class="border-2 border-dashed border-gray-200 rounded-2xl py-8 my-4 bg-gray-50">
+                        <h2 class="text-3xl font-black uppercase px-4">${menu}</h2>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl animate-pulse">
+                        <p class="text-amber-800 font-bold text-sm">📸 SCREENSHOT SEKARANG!</p>
+                        <p class="text-amber-700 text-[10px]">Tunjukkan ke kasir untuk klaim hadiahmu.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showFullPage() {
+            document.getElementById('user-card').innerHTML = `
+                <div class="p-10">
+                    <h2 class="text-4xl mb-4">🏃💨</h2>
+                    <h2 class="text-2xl font-bold">Yah, Terlambat!</h2>
+                    <p class="text-gray-500 text-sm mt-2 mb-8">10 kuota gratis di titik ini sudah habis terjual.</p>
+                    <a href="https://instagram.com/kafe_kamu" class="block w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg">FOLLOW IG UNTUK DISKON</a>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
