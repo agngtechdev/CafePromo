@@ -3,131 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sugiban Cafe - Promo</title>
+    <title>Sugiban Cafe - Promo System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-slate-50 min-h-screen font-sans">
 
-    <main id="admin-view" class="hidden p-4 max-w-4xl mx-auto">
-        <nav class="bg-black text-white p-4 rounded-xl mb-6 shadow-lg">
-            <h1 class="font-bold tracking-tighter italic text-center">SUGIBAN CAFE - ADMIN DASHBOARD</h1>
-        </nav>
+    <main id="admin-view" class="hidden p-4 max-w-6xl mx-auto">
+        <header class="bg-black text-white p-6 rounded-2xl mb-8 shadow-xl flex justify-between items-center">
+            <h1 class="font-black italic text-xl tracking-widest">SUGIBAN ADMIN PANEL</h1>
+            <div id="db-status" class="text-[10px] bg-green-500 px-2 py-1 rounded">CONNECTED</div>
+        </header>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border">
-                <h2 class="font-bold mb-4">Titik Konvoi</h2>
-                <div id="location-container" class="space-y-4"></div>
-                <button onclick="addNewLocation()" class="w-full mt-4 border-2 border-dashed border-gray-300 py-3 rounded-xl text-gray-500 hover:bg-gray-50 text-sm">+ Tambah Titik Baru</button>
-            </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border">
-                <h2 class="font-bold mb-4">Menu Hadiah</h2>
-                <div class="flex gap-2 mb-4">
-                    <input type="text" id="menu-input" class="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder="Nama menu...">
-                    <button onclick="addMenu()" class="bg-black text-white px-4 py-2 rounded-lg text-sm">Tambah</button>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="font-bold text-lg mb-4">Monitoring Realtime Titik Konvoi</h2>
+                    <div id="location-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <button onclick="addNewLocation()" class="w-full mt-4 border-2 border-dashed border-slate-300 py-3 rounded-xl text-slate-400 hover:text-black hover:border-black transition text-sm font-medium">+ Buat Titik Konvoi Baru</button>
                 </div>
-                <ul id="menu-list" class="divide-y text-sm"></ul>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="font-bold text-lg mb-4 text-red-600">Daftar Scan Masuk (Validasi Nama & IP)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="border-b text-slate-400">
+                                    <th class="py-2">Titik</th>
+                                    <th>Nama User</th>
+                                    <th>IP Address</th>
+                                    <th>Menu Didapat</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="log-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                <h2 class="font-bold text-lg mb-4">Pool Menu Hadiah</h2>
+                <div class="flex gap-2 mb-6">
+                    <input type="text" id="menu-input" class="flex-1 border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 ring-black" placeholder="Contoh: Es Kopi Susu">
+                    <button onclick="addMenu()" class="bg-black text-white px-4 py-2 rounded-xl text-sm font-bold">TAMBAH</button>
+                </div>
+                <ul id="menu-list" class="space-y-2"></ul>
             </div>
         </div>
     </main>
 
     <main id="user-view" class="hidden p-6 flex items-center justify-center min-h-screen">
-        <div id="user-card" class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border">
+        <div id="user-card" class="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
             </div>
     </main>
 
     <script>
-        // ISI CONFIG FIREBASE KAMU DI SINI
+        // CONFIG FIREBASE (WAJIB GANTI)
         const firebaseConfig = {
-            apiKey: "AIzaSyC8DUOY0lUMMAAhIGamREtV9GoQVnLwhfQ",
-            authDomain: "gachamenu-b46e2.firebaseapp.com",
-            databaseURL: "https://gachamenu-b46e2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "gachamenu-b46e2",
-            storageBucket: "gachamenu-b46e2.firebasestorage.app",
-            messagingSenderId: "500919769738",
-            appId: "1:500919769738:web:16c4ba211a8da6dd752b73"
+        apiKey: "AIzaSyC8DUOY0lUMMAAhIGamREtV9GoQVnLwhfQ",
+        authDomain: "gachamenu-b46e2.firebaseapp.com",
+        databaseURL: "https://gachamenu-b46e2-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "gachamenu-b46e2",
+        storageBucket: "gachamenu-b46e2.firebasestorage.app",
+        messagingSenderId: "500919769738",
+        appId: "1:500919769738:web:16c4ba211a8da6dd752b73"
         };
         
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-
         const urlParams = new URLSearchParams(window.location.search);
         const titikId = urlParams.get('id');
 
         window.onload = () => {
             if (titikId) {
                 document.getElementById('user-view').classList.remove('hidden');
-                checkUserStatus();
+                initUserFlow();
             } else {
                 document.getElementById('admin-view').classList.remove('hidden');
                 initAdminMonitoring();
             }
         };
 
-        // --- USER LOGIC (ANTI-SPAM) ---
-        function checkUserStatus() {
-            const savedName = localStorage.getItem('user_name_' + titikId);
-            if (savedName) {
-                // User sudah pernah scan di titik ini, ambil data lama
-                db.ref(`scans/${titikId}/${savedName}`).once('value', (snap) => {
-                    if (snap.exists()) {
-                        showWinPage(snap.val().menu, savedName);
-                    } else {
-                        showInputName();
-                    }
-                });
+        // --- USER LOGIC (DENGAN IP TRACKING) ---
+        async function getIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (e) { return 'Unknown'; }
+        }
+
+        async function initUserFlow() {
+            const userIP = await getIP();
+            const savedData = JSON.parse(localStorage.getItem('promo_claim_' + titikId));
+
+            if (savedData) {
+                showWinPage(savedData.menu, savedData.name);
             } else {
-                showInputName();
+                showInputForm();
             }
         }
 
-        function showInputName() {
+        function showInputForm() {
             document.getElementById('user-card').innerHTML = `
-                <div class="p-8 text-center">
-                    <h2 class="text-xl font-bold mb-2 text-black">Halo! Selamat Datang</h2>
-                    <p class="text-gray-500 text-sm mb-6">Masukkan nama kamu untuk klaim menu gratis.</p>
-                    <input type="text" id="name-input" class="w-full border-2 border-gray-100 rounded-xl px-4 py-3 mb-4 focus:border-black outline-none transition" placeholder="Nama Panggilan/Lengkap">
-                    <button onclick="submitScan()" class="w-full bg-black text-white font-bold py-4 rounded-xl shadow-lg">AMBIL HADIAH</button>
+                <div class="p-10 text-center">
+                    <div class="w-16 h-16 bg-black rounded-2xl mx-auto mb-6 flex items-center justify-center">
+                        <span class="text-white font-black text-xl italic">S</span>
+                    </div>
+                    <h2 class="text-2xl font-black mb-2 uppercase tracking-tighter">AMBIL PROMO</h2>
+                    <p class="text-slate-400 text-sm mb-8">Masukkan nama kamu untuk mengacak menu gratis hari ini!</p>
+                    <input type="text" id="name-input" class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 mb-4 focus:border-black outline-none transition text-center font-bold" placeholder="Nama Kamu">
+                    <button onclick="handleClaim()" id="btn-claim" class="w-full bg-black text-white font-black py-5 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition uppercase tracking-widest">Generate Menu</button>
                 </div>
             `;
         }
 
-        function submitScan() {
-            const name = document.getElementById('name-input').value.trim().toLowerCase();
-            if (!name) return alert("Nama tidak boleh kosong!");
+        async function handleClaim() {
+            const name = document.getElementById('name-input').value.trim();
+            const btn = document.getElementById('btn-claim');
+            if (!name) return alert("Tuliskan nama kamu dulu ya!");
 
-            // Cek di database apakah nama ini sudah pernah scan di titik ini
-            db.ref(`scans/${titikId}/${name}`).once('value', (snap) => {
+            btn.disabled = true;
+            btn.innerText = "SEDANG MENGACAK...";
+            
+            const ip = await getIP();
+            const cleanName = name.toLowerCase().replace(/\s/g, '');
+
+            // 1. Cek apakah Nama + IP ini sudah ada di database (Anti-Double)
+            db.ref(`scans/${titikId}/${cleanName}_${ip.replace(/\./g, '_')}`).once('value', (snap) => {
                 if (snap.exists()) {
-                    // Jika nama sudah ada, tampilkan menu yang lama (jangan tambah counter)
-                    localStorage.setItem('user_name_' + titikId, name);
-                    showWinPage(snap.val().menu, name);
+                    const oldData = snap.val();
+                    localStorage.setItem('promo_claim_' + titikId, JSON.stringify(oldData));
+                    showWinPage(oldData.menu, oldData.name);
                 } else {
-                    // Nama baru, proses scan asli
-                    processNewScan(name);
+                    // 2. Jika baru, proses transaksi counter
+                    executeTransaction(name, cleanName, ip);
                 }
             });
         }
 
-        function processNewScan(name) {
+        function executeTransaction(originalName, cleanName, ip) {
             db.ref('locations/' + titikId).transaction((loc) => {
                 if (loc && loc.count < loc.max) {
                     loc.count++;
                     return loc;
                 }
-                return; // Abort jika penuh
+                return;
             }, (error, committed, snapshot) => {
                 if (committed) {
                     db.ref('menus').once('value', (menuSnap) => {
-                        const menus = Object.values(menuSnap.val() || ["Kopi Susu"]);
-                        const randomMenu = menus[Math.floor(Math.random() * menus.length)];
+                        const menuData = menuSnap.val();
+                        if (!menuData) return alert("Admin belum mengisi menu hadiah!");
                         
-                        // Simpan data scan user agar tidak bisa diulang
-                        db.ref(`scans/${titikId}/${name}`).set({ menu: randomMenu });
-                        localStorage.setItem('user_name_' + titikId, name);
+                        const menuArray = Object.values(menuData);
+                        const randomMenu = menuArray[Math.floor(Math.random() * menuArray.length)];
                         
-                        showWinPage(randomMenu, name);
+                        const claimData = { name: originalName, menu: randomMenu, ip: ip, timestamp: Date.now() };
+                        
+                        // Simpan ke Firebase
+                        db.ref(`scans/${titikId}/${cleanName}_${ip.replace(/\./g, '_')}`).set(claimData);
+                        // Simpan ke LocalStorage HP
+                        localStorage.setItem('promo_claim_' + titikId, JSON.stringify(claimData));
+                        
+                        showWinPage(randomMenu, originalName);
                     });
                 } else {
                     showFullPage();
@@ -137,61 +177,92 @@
 
         function showWinPage(menu, name) {
             document.getElementById('user-card').innerHTML = `
-                <div class="bg-black p-4 text-white text-[10px] text-center tracking-widest uppercase italic">SUGIBAN CAFE</div>
-                <div class="p-8 text-center">
-                    <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Klaim Berhasil: ${name}</p>
-                    <div class="border-2 border-dashed border-gray-200 rounded-2xl py-8 my-4 bg-gray-50">
-                        <h2 class="text-3xl font-black uppercase text-black px-4">${menu}</h2>
+                <div class="bg-black p-4 text-white text-[10px] text-center tracking-[0.3em] font-bold">SUGIBAN CAFE</div>
+                <div class="p-10 text-center">
+                    <p class="text-xs text-slate-400 uppercase font-bold mb-2">Selamat, ${name}!</p>
+                    <h3 class="text-sm text-slate-500 mb-6">Kamu Berhasil Mendapatkan:</h3>
+                    <div class="bg-slate-50 border-4 border-double border-slate-200 rounded-3xl py-10 mb-8 px-4">
+                        <h2 class="text-3xl font-black uppercase leading-tight">${menu}</h2>
                     </div>
-                    <p class="text-amber-600 font-bold text-sm animate-pulse">📸 SCREENSHOT SEKARANG!</p>
+                    <div class="bg-yellow-50 border border-yellow-200 p-5 rounded-2xl">
+                        <p class="text-yellow-800 font-black text-sm mb-1 uppercase tracking-tighter">📸 SCREENSHOT SEKARANG!</p>
+                        <p class="text-yellow-700 text-[10px]">Tunjukkan screenshot ini dan hasil scan barcode ke kasir Sugiban Cafe.</p>
+                    </div>
                 </div>
             `;
         }
 
         function showFullPage() {
-            document.getElementById('user-card').innerHTML = `<div class="p-10 text-center"><h2 class="text-2xl font-bold">Yah, Kuota Habis!</h2><p class="text-gray-500 mt-2 mb-8 text-sm">Ikuti konvoi kami ke titik selanjutnya!</p><a href="#" class="block w-full bg-black text-white py-4 rounded-xl font-bold">FOLLOW INSTAGRAM</a></div>`;
+            document.getElementById('user-card').innerHTML = `<div class="p-12 text-center"><h2 class="text-5xl mb-6">🏃</h2><h2 class="text-2xl font-black uppercase">Kuota Habis!</h2><p class="text-slate-500 mt-4 text-sm leading-relaxed">Jangan sedih, 10 kuota gratis di titik ini sudah terklaim. Ikuti konvoi kami ke titik berikutnya!</p></div>`;
         }
 
         // --- ADMIN FUNCTIONS ---
         function initAdminMonitoring() {
+            // Monitor Lokasi
             db.ref('locations').on('value', (snap) => {
                 const data = snap.val();
                 const cont = document.getElementById('location-container');
                 cont.innerHTML = '';
-                if(data) {
-                    Object.keys(data).forEach(k => {
-                        cont.innerHTML += `
-                            <div class="p-4 bg-gray-50 rounded-xl border relative">
-                                <button onclick="deleteLocation('${k}')" class="absolute top-2 right-2 text-gray-300">×</button>
-                                <p class="text-[10px] font-bold text-gray-400 uppercase">${k}</p>
-                                <p class="font-bold">${data[k].name}</p>
-                                <div class="flex items-end justify-between mt-2">
-                                    <h3 class="text-3xl font-mono">${data[k].count} <span class="text-xs text-gray-300">/ ${data[k].max}</span></h3>
-                                    <button onclick="resetCounter('${k}')" class="text-[10px] border px-2 py-1 rounded bg-white shadow-sm">RESET</button>
-                                </div>
+                if(data) Object.keys(data).forEach(k => {
+                    cont.innerHTML += `
+                        <div class="p-5 bg-slate-50 rounded-2xl border border-slate-100 relative group">
+                            <button onclick="deleteLocation('${k}')" class="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">Hapus Titik</button>
+                            <p class="text-[10px] font-black text-blue-500 uppercase mb-1">${k}</p>
+                            <p class="font-bold text-slate-800">${data[k].name}</p>
+                            <div class="flex items-end justify-between mt-4">
+                                <h3 class="text-4xl font-black">${data[k].count}<span class="text-sm text-slate-300 font-normal ml-1">/ ${data[k].max}</span></h3>
+                                <button onclick="resetTitik('${k}')" class="text-[10px] font-bold bg-white border shadow-sm px-3 py-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition">RESET DATA</button>
                             </div>
-                        `;
-                    });
-                }
+                        </div>`;
+                });
             });
+
+            // Monitor Menu
             db.ref('menus').on('value', (snap) => {
                 const m = snap.val();
                 const list = document.getElementById('menu-list');
                 list.innerHTML = '';
                 if(m) Object.keys(m).forEach(k => {
-                    list.innerHTML += `<li class="py-2 flex justify-between">${m[k]} <button onclick="deleteMenu('${k}')" class="text-red-400 text-xs tracking-tighter">HAPUS</button></li>`;
+                    list.innerHTML += `<li class="flex justify-between items-center bg-slate-50 p-3 rounded-xl text-sm font-medium uppercase">${m[k]} <button onclick="deleteMenu('${k}')" class="text-red-400 hover:text-red-600">Hapus</button></li>`;
                 });
+            });
+
+            // Monitor Logs Scan (Daftar Nama & IP)
+            db.ref('scans').on('value', (snap) => {
+                const logBody = document.getElementById('log-body');
+                logBody.innerHTML = '';
+                const allScans = snap.val();
+                if(allScans) {
+                    Object.keys(allScans).forEach(locId => {
+                        Object.keys(allScans[locId]).forEach(scanKey => {
+                            const s = allScans[locId][scanKey];
+                            logBody.innerHTML += `
+                                <tr class="text-slate-600">
+                                    <td class="py-3 font-bold text-blue-500">${locId}</td>
+                                    <td>${s.name}</td>
+                                    <td class="font-mono text-xs">${s.ip}</td>
+                                    <td class="italic">${s.menu}</td>
+                                    <td><button onclick="deleteSingleScan('${locId}', '${scanKey}')" class="text-red-400 hover:underline">Hapus User</button></td>
+                                </tr>`;
+                        });
+                    });
+                }
             });
         }
 
         function addNewLocation() {
-            const n = prompt("Nama Lokasi:"), i = prompt("ID (titik1, titik2, dst):");
-            if(n && i) db.ref('locations/' + i).set({ name: n, count: 0, max: 10 });
+            const n = prompt("Nama Lokasi (misal: Perempatan Sudirman):"), i = prompt("ID Unik (misal: titik1):");
+            if(n && i) db.ref('locations/' + i.toLowerCase()).set({ name: n, count: 0, max: 10 });
         }
-        function deleteLocation(i) { if(confirm('Hapus?')) db.ref('locations/' + i).remove(); }
-        function resetCounter(i) { if(confirm('Reset counter ke 0?')) { db.ref('locations/' + i + '/count').set(0); db.ref('scans/' + i).remove(); } }
+        function resetTitik(id) { if(confirm('Reset counter dan hapus semua data scan di titik ini?')) { db.ref('locations/' + id + '/count').set(0); db.ref('scans/' + id).remove(); } }
+        function deleteLocation(id) { if(confirm('Hapus titik?')) db.ref('locations/' + id).remove(); }
         function addMenu() { const v = document.getElementById('menu-input').value; if(v) { db.ref('menus').push(v); document.getElementById('menu-input').value = ''; } }
         function deleteMenu(k) { db.ref('menus/' + k).remove(); }
+        function deleteSingleScan(locId, scanKey) {
+            if(confirm('Hapus scan user ini? (Counter di titik tersebut tidak akan berkurang otomatis)')) {
+                db.ref(`scans/${locId}/${scanKey}`).remove();
+            }
+        }
     </script>
 </body>
 </html>
