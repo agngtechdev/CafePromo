@@ -60,7 +60,6 @@
     </main>
 
     <script>
-    // PASTIKAN CONFIG FIREBASE SUDAH BENAR
     const firebaseConfig = {
         apiKey: "AIzaSyC8DUOY0lUMMAAhIGamREtV9GoQVnLwhfQ",
         authDomain: "gachamenu-b46e2.firebaseapp.com",
@@ -79,12 +78,13 @@
     window.onload = () => {
         if (titikId) {
             document.getElementById('user-view').classList.remove('hidden');
-            // CEK DULU: APAKAH TITIK INI ADA DI DATABASE?
+            // Proteksi: Cek apakah titik ada di database
             db.ref('locations/' + titikId).once('value', (snap) => {
                 if (!snap.exists()) {
                     document.getElementById('user-card').innerHTML = `
                         <div class="p-10 text-center">
-                            <p class="text-red-500 font-bold">ERROR: Titik '${titikId}' belum didaftarkan di Admin!</p>
+                            <p class="text-red-500 font-bold">ERROR: Titik '${titikId}' tidak ditemukan!</p>
+                            <p class="text-xs text-slate-400 mt-2">Pastikan admin sudah membuat ID ini.</p>
                         </div>`;
                 } else {
                     initUserFlow();
@@ -96,53 +96,81 @@
         }
     };
 
-    // --- LOGIKA USER (ANTI-EROR) ---
+    // --- FUNGSI PEMBANTU ---
+    async function getIP() {
+        try {
+            const res = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+            return data.ip;
+        } catch (e) { return "0.0.0.0"; }
+    }
+
+    // --- LOGIKA USER ---
+    async function initUserFlow() {
+        const ip = await getIP();
+        const savedData = localStorage.getItem('promo_claim_' + titikId);
+        
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            showWinPage(data.menu, data.name);
+        } else {
+            showInputForm();
+        }
+    }
+
+    function showInputForm() {
+        document.getElementById('user-card').innerHTML = `
+            <div class="p-10 text-center">
+                <div class="w-16 h-16 bg-black rounded-2xl mx-auto mb-6 flex items-center justify-center">
+                    <span class="text-white font-black text-xl italic">S</span>
+                </div>
+                <h2 class="text-2xl font-black mb-2 uppercase tracking-tighter">AMBIL PROMO</h2>
+                <p class="text-slate-400 text-sm mb-8">Masukkan nama kamu untuk klaim menu gratis!</p>
+                <input type="text" id="name-input" class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 mb-4 focus:border-black outline-none transition text-center font-bold" placeholder="Nama Kamu">
+                <button onclick="handleClaim()" id="btn-claim" class="w-full bg-black text-white font-black py-5 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition uppercase tracking-widest">Generate Menu</button>
+            </div>
+        `;
+    }
+
     async function handleClaim() {
-        const nameInput = document.getElementById('name-input');
-        const name = nameInput.value.trim();
+        const name = document.getElementById('name-input').value.trim();
         if (!name) return alert("Masukkan nama!");
+
+        const btn = document.getElementById('btn-claim');
+        btn.disabled = true;
+        btn.innerText = "MENGACAK...";
 
         const ip = await getIP();
         const cleanName = name.toLowerCase().replace(/\s/g, '');
         const userKey = `${cleanName}_${ip.replace(/\./g, '_')}`;
 
-        // 1. Cek apakah user ini sudah pernah klaim (Sticky Menu)
         db.ref(`scans/${titikId}/${userKey}`).once('value', (snap) => {
             if (snap.exists()) {
                 const data = snap.val();
                 localStorage.setItem('promo_claim_' + titikId, JSON.stringify(data));
                 showWinPage(data.menu, data.name);
             } else {
-                // 2. Jalankan transaksi penambahan counter
                 executeTransaction(name, userKey, ip);
             }
         });
     }
 
     function executeTransaction(originalName, userKey, ip) {
-        const locRef = db.ref('locations/' + titikId);
-        
-        locRef.transaction((loc) => {
-            if (loc) {
-                if (loc.count < loc.max) {
-                    loc.count++; // Tambah 1
-                    return loc;
-                }
+        db.ref('locations/' + titikId).transaction((loc) => {
+            if (loc && loc.count < loc.max) {
+                loc.count++;
+                return loc;
             }
-            return; // Gagalkan jika loc null atau kuota penuh
-        }, (error, committed, snapshot) => {
+            return;
+        }, (error, committed) => {
             if (committed) {
-                // 3. Ambil Menu dan Simpan Data User
-                db.ref('menus').once('value', (menuSnap) => {
-                    const menus = Object.values(menuSnap.val() || {0: "Kopi Susu"});
+                db.ref('menus').once('value', (snap) => {
+                    const menus = Object.values(snap.val() || {0: "Kopi Susu"});
                     const randomMenu = menus[Math.floor(Math.random() * menus.length)];
-                    
                     const claimData = { name: originalName, menu: randomMenu, ip: ip };
                     
-                    // Simpan permanen agar tidak dihitung ulang saat refresh
                     db.ref(`scans/${titikId}/${userKey}`).set(claimData);
                     localStorage.setItem('promo_claim_' + titikId, JSON.stringify(claimData));
-                    
                     showWinPage(randomMenu, originalName);
                 });
             } else {
@@ -150,97 +178,92 @@
             }
         });
     }
-    // ... (Sisa fungsi showWinPage, initAdminMonitoring, dll tetap sama) ...
 
-
-        function showWinPage(menu, name) {
-            document.getElementById('user-card').innerHTML = `
-                <div class="bg-black p-4 text-white text-[10px] text-center tracking-[0.3em] font-bold">SUGIBAN CAFE</div>
-                <div class="p-10 text-center">
-                    <p class="text-xs text-slate-400 uppercase font-bold mb-2">Selamat, ${name}!</p>
-                    <h3 class="text-sm text-slate-500 mb-6">Kamu Berhasil Mendapatkan:</h3>
-                    <div class="bg-slate-50 border-4 border-double border-slate-200 rounded-3xl py-10 mb-8 px-4">
-                        <h2 class="text-3xl font-black uppercase leading-tight">${menu}</h2>
-                    </div>
-                    <div class="bg-yellow-50 border border-yellow-200 p-5 rounded-2xl">
-                        <p class="text-yellow-800 font-black text-sm mb-1 uppercase tracking-tighter">📸 SCREENSHOT SEKARANG!</p>
-                        <p class="text-yellow-700 text-[10px]">Tunjukkan screenshot ini dan hasil scan barcode ke kasir Sugiban Cafe.</p>
-                    </div>
+    function showWinPage(menu, name) {
+        document.getElementById('user-card').innerHTML = `
+            <div class="bg-black p-4 text-white text-[10px] text-center tracking-[0.3em] font-bold">SUGIBAN CAFE</div>
+            <div class="p-10 text-center">
+                <p class="text-xs text-slate-400 uppercase font-bold mb-2">Selamat, ${name}!</p>
+                <div class="bg-slate-50 border-4 border-double border-slate-200 rounded-3xl py-10 mb-8 px-4">
+                    <h2 class="text-3xl font-black uppercase leading-tight">${menu}</h2>
                 </div>
-            `;
-        }
+                <div class="bg-yellow-50 border border-yellow-200 p-5 rounded-2xl text-center">
+                    <p class="text-yellow-800 font-black text-sm mb-1 uppercase tracking-tighter">📸 SCREENSHOT SEKARANG!</p>
+                    <p class="text-yellow-700 text-[10px]">Tunjukkan bukti ini ke kasir Sugiban Cafe.</p>
+                </div>
+            </div>
+        `;
+    }
 
-        function showFullPage() {
-            document.getElementById('user-card').innerHTML = `<div class="p-12 text-center"><h2 class="text-5xl mb-6">🏃</h2><h2 class="text-2xl font-black uppercase">Kuota Habis!</h2><p class="text-slate-500 mt-4 text-sm leading-relaxed">Jangan sedih, 10 kuota gratis di titik ini sudah terklaim. Ikuti konvoi kami ke titik berikutnya!</p></div>`;
-        }
+    function showFullPage() {
+        document.getElementById('user-card').innerHTML = `
+            <div class="p-12 text-center">
+                <h2 class="text-5xl mb-6">🏃</h2>
+                <h2 class="text-2xl font-black uppercase">Kuota Habis!</h2>
+                <p class="text-slate-500 mt-4 text-sm">Ikuti konvoi ke titik selanjutnya!</p>
+            </div>`;
+    }
 
-        // --- ADMIN FUNCTIONS ---
-        function initAdminMonitoring() {
-            // Monitor Lokasi
-            db.ref('locations').on('value', (snap) => {
-                const data = snap.val();
-                const cont = document.getElementById('location-container');
-                cont.innerHTML = '';
-                if(data) Object.keys(data).forEach(k => {
-                    cont.innerHTML += `
-                        <div class="p-5 bg-slate-50 rounded-2xl border border-slate-100 relative group">
-                            <button onclick="deleteLocation('${k}')" class="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">Hapus Titik</button>
-                            <p class="text-[10px] font-black text-blue-500 uppercase mb-1">${k}</p>
-                            <p class="font-bold text-slate-800">${data[k].name}</p>
-                            <div class="flex items-end justify-between mt-4">
-                                <h3 class="text-4xl font-black">${data[k].count}<span class="text-sm text-slate-300 font-normal ml-1">/ ${data[k].max}</span></h3>
-                                <button onclick="resetTitik('${k}')" class="text-[10px] font-bold bg-white border shadow-sm px-3 py-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition">RESET DATA</button>
-                            </div>
-                        </div>`;
-                });
+    // --- LOGIKA ADMIN ---
+    function initAdminMonitoring() {
+        db.ref('locations').on('value', (snap) => {
+            const data = snap.val();
+            const cont = document.getElementById('location-container');
+            cont.innerHTML = '';
+            if(data) Object.keys(data).forEach(k => {
+                cont.innerHTML += `
+                    <div class="p-5 bg-slate-50 rounded-2xl border border-slate-100 relative group">
+                        <button onclick="deleteLocation('${k}')" class="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition text-xs">Hapus</button>
+                        <p class="text-[10px] font-black text-blue-500 uppercase mb-1">ID: ${k}</p>
+                        <p class="font-bold text-slate-800">${data[k].name}</p>
+                        <div class="flex items-end justify-between mt-4">
+                            <h3 class="text-4xl font-black">${data[k].count}<span class="text-sm text-slate-300 font-normal ml-1">/ ${data[k].max}</span></h3>
+                            <button onclick="resetTitik('${k}')" class="text-[10px] font-bold bg-white border shadow-sm px-3 py-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition">RESET</button>
+                        </div>
+                    </div>`;
             });
+        });
 
-            // Monitor Menu
-            db.ref('menus').on('value', (snap) => {
-                const m = snap.val();
-                const list = document.getElementById('menu-list');
-                list.innerHTML = '';
-                if(m) Object.keys(m).forEach(k => {
-                    list.innerHTML += `<li class="flex justify-between items-center bg-slate-50 p-3 rounded-xl text-sm font-medium uppercase">${m[k]} <button onclick="deleteMenu('${k}')" class="text-red-400 hover:text-red-600">Hapus</button></li>`;
-                });
+        db.ref('menus').on('value', (snap) => {
+            const m = snap.val();
+            const list = document.getElementById('menu-list');
+            list.innerHTML = '';
+            if(m) Object.keys(m).forEach(k => {
+                list.innerHTML += `<li class="flex justify-between items-center bg-slate-50 p-3 rounded-xl text-sm font-medium uppercase">${m[k]} <button onclick="deleteMenu('${k}')" class="text-red-400">Hapus</button></li>`;
             });
+        });
 
-            // Monitor Logs Scan (Daftar Nama & IP)
-            db.ref('scans').on('value', (snap) => {
-                const logBody = document.getElementById('log-body');
-                logBody.innerHTML = '';
-                const allScans = snap.val();
-                if(allScans) {
-                    Object.keys(allScans).forEach(locId => {
-                        Object.keys(allScans[locId]).forEach(scanKey => {
-                            const s = allScans[locId][scanKey];
-                            logBody.innerHTML += `
-                                <tr class="text-slate-600">
-                                    <td class="py-3 font-bold text-blue-500">${locId}</td>
-                                    <td>${s.name}</td>
-                                    <td class="font-mono text-xs">${s.ip}</td>
-                                    <td class="italic">${s.menu}</td>
-                                    <td><button onclick="deleteSingleScan('${locId}', '${scanKey}')" class="text-red-400 hover:underline">Hapus User</button></td>
-                                </tr>`;
-                        });
+        db.ref('scans').on('value', (snap) => {
+            const logBody = document.getElementById('log-body');
+            logBody.innerHTML = '';
+            const allScans = snap.val();
+            if(allScans) {
+                Object.keys(allScans).forEach(locId => {
+                    Object.keys(allScans[locId]).forEach(scanKey => {
+                        const s = allScans[locId][scanKey];
+                        logBody.innerHTML += `
+                            <tr class="text-slate-600 border-b last:border-0">
+                                <td class="py-3 font-bold text-blue-500">${locId}</td>
+                                <td>${s.name}</td>
+                                <td class="font-mono text-[10px]">${s.ip}</td>
+                                <td class="italic">${s.menu}</td>
+                                <td><button onclick="deleteSingleScan('${locId}', '${scanKey}')" class="text-red-400 text-xs">Hapus</button></td>
+                            </tr>`;
                     });
-                }
-            });
-        }
-
-        function addNewLocation() {
-            const n = prompt("Nama Lokasi (misal: Perempatan Sudirman):"), i = prompt("ID Unik (misal: titik1):");
-            if(n && i) db.ref('locations/' + i.toLowerCase()).set({ name: n, count: 0, max: 10 });
-        }
-        function resetTitik(id) { if(confirm('Reset counter dan hapus semua data scan di titik ini?')) { db.ref('locations/' + id + '/count').set(0); db.ref('scans/' + id).remove(); } }
-        function deleteLocation(id) { if(confirm('Hapus titik?')) db.ref('locations/' + id).remove(); }
-        function addMenu() { const v = document.getElementById('menu-input').value; if(v) { db.ref('menus').push(v); document.getElementById('menu-input').value = ''; } }
-        function deleteMenu(k) { db.ref('menus/' + k).remove(); }
-        function deleteSingleScan(locId, scanKey) {
-            if(confirm('Hapus scan user ini? (Counter di titik tersebut tidak akan berkurang otomatis)')) {
-                db.ref(`scans/${locId}/${scanKey}`).remove();
+                });
             }
-        }
+        });
+    }
+
+    function addNewLocation() {
+        const n = prompt("Nama Lokasi:"), i = prompt("ID Unik (misal: boulevard):");
+        if(n && i) db.ref('locations/' + i.toLowerCase().trim()).set({ name: n, count: 0, max: 10 });
+    }
+    function resetTitik(id) { if(confirm('Hapus semua data scan di titik ini?')) { db.ref('locations/' + id + '/count').set(0); db.ref('scans/' + id).remove(); } }
+    function deleteLocation(id) { if(confirm('Hapus titik?')) db.ref('locations/' + id).remove(); }
+    function addMenu() { const v = document.getElementById('menu-input').value; if(v) { db.ref('menus').push(v); document.getElementById('menu-input').value = ''; } }
+    function deleteMenu(k) { db.ref('menus/' + k).remove(); }
+    function deleteSingleScan(locId, scanKey) { if(confirm('Hapus user?')) db.ref(`scans/${locId}/${scanKey}`).remove(); }
     </script>
 </body>
 </html>
