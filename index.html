@@ -3,36 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kafe Realtime Marketing</title>
+    <title>Sugiban Cafe - Promo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-    <nav class="bg-black text-white p-4 flex justify-between items-center shadow-lg">
-        <h1 class="font-bold tracking-tighter italic">SUGIBAN CAFE</h1>
-        <div class="flex gap-2">
-            <button onclick="switchView('admin')" class="text-[10px] bg-zinc-800 px-3 py-1 rounded">ADMIN</button>
-            <button onclick="window.location.search = '?id=titik1'" class="text-[10px] bg-zinc-800 px-3 py-1 rounded">TEST USER</button>
-        </div>
-    </nav>
-
-    <main id="admin-view" class="p-4 max-w-4xl mx-auto hidden">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+    <main id="admin-view" class="hidden p-4 max-w-4xl mx-auto">
+        <nav class="bg-black text-white p-4 rounded-xl mb-6 shadow-lg">
+            <h1 class="font-bold tracking-tighter italic text-center">SUGIBAN CAFE - ADMIN DASHBOARD</h1>
+        </nav>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border">
-                <h2 class="font-bold mb-4 flex justify-between items-center">
-                    Titik Konvoi 
-                    <span id="total-titik" class="text-xs bg-gray-100 px-2 py-1 rounded">0</span>
-                </h2>
+                <h2 class="font-bold mb-4">Titik Konvoi</h2>
                 <div id="location-container" class="space-y-4"></div>
                 <button onclick="addNewLocation()" class="w-full mt-4 border-2 border-dashed border-gray-300 py-3 rounded-xl text-gray-500 hover:bg-gray-50 text-sm">+ Tambah Titik Baru</button>
             </div>
-
             <div class="bg-white p-6 rounded-2xl shadow-sm border">
-                <h2 class="font-bold mb-4">Daftar Menu Hadiah</h2>
+                <h2 class="font-bold mb-4">Menu Hadiah</h2>
                 <div class="flex gap-2 mb-4">
-                    <input type="text" id="menu-input" placeholder="Nama menu..." class="flex-1 border rounded-lg px-3 py-2 text-sm">
+                    <input type="text" id="menu-input" class="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder="Nama menu...">
                     <button onclick="addMenu()" class="bg-black text-white px-4 py-2 rounded-lg text-sm">Tambah</button>
                 </div>
                 <ul id="menu-list" class="divide-y text-sm"></ul>
@@ -40,13 +32,13 @@
         </div>
     </main>
 
-    <main id="user-view" class="hidden p-6 flex items-center justify-center min-h-[80vh]">
-        <div id="user-card" class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden text-center border">
+    <main id="user-view" class="hidden p-6 flex items-center justify-center min-h-screen">
+        <div id="user-card" class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border">
             </div>
     </main>
 
     <script>
-        // 1. GANTI INI DENGAN DATA DARI FIREBASE KAMU
+        // ISI CONFIG FIREBASE KAMU DI SINI
         const firebaseConfig = {
             apiKey: "AIzaSyC8DUOY0lUMMAAhIGamREtV9GoQVnLwhfQ",
             authDomain: "gachamenu-b46e2.firebaseapp.com",
@@ -60,100 +52,82 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Variabel Global
         const urlParams = new URLSearchParams(window.location.search);
         const titikId = urlParams.get('id');
 
-        // ROUTING LOGIC
-        if (titikId) {
-            switchView('user');
-            processUserScan(titikId);
-        } else {
-            switchView('admin');
-            initAdminMonitoring();
-        }
+        window.onload = () => {
+            if (titikId) {
+                document.getElementById('user-view').classList.remove('hidden');
+                checkUserStatus();
+            } else {
+                document.getElementById('admin-view').classList.remove('hidden');
+                initAdminMonitoring();
+            }
+        };
 
-        function switchView(view) {
-            document.getElementById('admin-view').classList.toggle('hidden', view !== 'admin');
-            document.getElementById('user-view').classList.toggle('hidden', view !== 'user');
-        }
-
-        // --- ADMIN FUNCTIONS ---
-        function initAdminMonitoring() {
-            // Listen Realtime Lokasi
-            db.ref('locations').on('value', (snapshot) => {
-                const data = snapshot.val();
-                const container = document.getElementById('location-container');
-                container.innerHTML = '';
-                if(data) {
-                    Object.keys(data).forEach(key => {
-                        const loc = data[key];
-                        container.innerHTML += `
-                            <div class="p-4 bg-gray-50 rounded-xl border relative">
-                                <button onclick="deleteLocation('${key}')" class="absolute top-2 right-2 text-gray-300 hover:text-red-500">×</button>
-                                <p class="text-xs font-bold uppercase text-gray-400">${key}</p>
-                                <p class="text-lg font-bold">${loc.name}</p>
-                                <div class="flex items-end justify-between mt-2">
-                                    <h3 class="text-3xl font-mono">${loc.count} <span class="text-gray-300 text-sm">/ ${loc.max}</span></h3>
-                                    <button onclick="resetCounter('${key}')" class="text-[10px] bg-white border px-2 py-1 rounded shadow-sm">RESET</button>
-                                </div>
-                                <p class="text-[9px] mt-2 text-blue-500 break-all select-all">URL: ${window.location.origin}${window.location.pathname}?id=${key}</p>
-                            </div>
-                        `;
-                    });
-                }
-            });
-
-            // Listen Realtime Menu
-            db.ref('menus').on('value', (snapshot) => {
-                const menus = snapshot.val();
-                const list = document.getElementById('menu-list');
-                list.innerHTML = '';
-                if(menus) {
-                    Object.keys(menus).forEach(key => {
-                        list.innerHTML += `<li class="py-2 flex justify-between capitalize">${menus[key]} <button onclick="deleteMenu('${key}')" class="text-red-400 text-xs">Hapus</button></li>`;
-                    });
-                }
-            });
-        }
-
-        function addNewLocation() {
-            const name = prompt("Nama Lokasi (misal: Bundaran HI):");
-            const id = prompt("ID Unik (misal: titik1):");
-            if (name && id) {
-                db.ref('locations/' + id).set({ name: name, count: 0, max: 10 });
+        // --- USER LOGIC (ANTI-SPAM) ---
+        function checkUserStatus() {
+            const savedName = localStorage.getItem('user_name_' + titikId);
+            if (savedName) {
+                // User sudah pernah scan di titik ini, ambil data lama
+                db.ref(`scans/${titikId}/${savedName}`).once('value', (snap) => {
+                    if (snap.exists()) {
+                        showWinPage(snap.val().menu, savedName);
+                    } else {
+                        showInputName();
+                    }
+                });
+            } else {
+                showInputName();
             }
         }
 
-        function deleteLocation(id) { if(confirm('Hapus titik ini?')) db.ref('locations/' + id).remove(); }
-        function resetCounter(id) { db.ref('locations/' + id + '/count').set(0); }
-        function addMenu() {
-            const val = document.getElementById('menu-input').value;
-            if(val) { db.ref('menus').push(val); document.getElementById('menu-input').value = ''; }
+        function showInputName() {
+            document.getElementById('user-card').innerHTML = `
+                <div class="p-8 text-center">
+                    <h2 class="text-xl font-bold mb-2 text-black">Halo! Selamat Datang</h2>
+                    <p class="text-gray-500 text-sm mb-6">Masukkan nama kamu untuk klaim menu gratis.</p>
+                    <input type="text" id="name-input" class="w-full border-2 border-gray-100 rounded-xl px-4 py-3 mb-4 focus:border-black outline-none transition" placeholder="Nama Panggilan/Lengkap">
+                    <button onclick="submitScan()" class="w-full bg-black text-white font-bold py-4 rounded-xl shadow-lg">AMBIL HADIAH</button>
+                </div>
+            `;
         }
-        function deleteMenu(key) { db.ref('menus/' + key).remove(); }
 
-        // --- USER FUNCTIONS (REALTIME LOGIC) ---
-        function processUserScan(id) {
-            const card = document.getElementById('user-card');
-            
-            db.ref('locations/' + id).transaction((currentData) => {
-                if (currentData === null) return currentData; // Titik tidak ditemukan
+        function submitScan() {
+            const name = document.getElementById('name-input').value.trim().toLowerCase();
+            if (!name) return alert("Nama tidak boleh kosong!");
 
-                if (currentData.count < currentData.max) {
-                    // Masih ada kuota
-                    currentData.count++;
-                    return currentData;
+            // Cek di database apakah nama ini sudah pernah scan di titik ini
+            db.ref(`scans/${titikId}/${name}`).once('value', (snap) => {
+                if (snap.exists()) {
+                    // Jika nama sudah ada, tampilkan menu yang lama (jangan tambah counter)
+                    localStorage.setItem('user_name_' + titikId, name);
+                    showWinPage(snap.val().menu, name);
                 } else {
-                    return; // Abort transaction (kuota habis)
+                    // Nama baru, proses scan asli
+                    processNewScan(name);
                 }
+            });
+        }
+
+        function processNewScan(name) {
+            db.ref('locations/' + titikId).transaction((loc) => {
+                if (loc && loc.count < loc.max) {
+                    loc.count++;
+                    return loc;
+                }
+                return; // Abort jika penuh
             }, (error, committed, snapshot) => {
                 if (committed) {
-                    // AMBIL MENU ACAK
                     db.ref('menus').once('value', (menuSnap) => {
-                        const menus = Object.values(menuSnap.val() || {0: "Iced Coffee"});
+                        const menus = Object.values(menuSnap.val() || ["Kopi Susu"]);
                         const randomMenu = menus[Math.floor(Math.random() * menus.length)];
-                        showWinPage(randomMenu);
+                        
+                        // Simpan data scan user agar tidak bisa diulang
+                        db.ref(`scans/${titikId}/${name}`).set({ menu: randomMenu });
+                        localStorage.setItem('user_name_' + titikId, name);
+                        
+                        showWinPage(randomMenu, name);
                     });
                 } else {
                     showFullPage();
@@ -161,33 +135,63 @@
             });
         }
 
-        function showWinPage(menu) {
+        function showWinPage(menu, name) {
             document.getElementById('user-card').innerHTML = `
-                <div class="bg-black p-6 text-white text-xs tracking-widest uppercase">SUGIBAN CAFE</div>
-                <div class="p-8">
-                    <div class="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-3 py-1 rounded-full mb-4 uppercase">Voucher Valid</div>
-                    <p class="text-gray-500 text-xs uppercase mb-1">Selamat! Kamu mendapatkan :</p>
+                <div class="bg-black p-4 text-white text-[10px] text-center tracking-widest uppercase italic">SUGIBAN CAFE</div>
+                <div class="p-8 text-center">
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Klaim Berhasil: ${name}</p>
                     <div class="border-2 border-dashed border-gray-200 rounded-2xl py-8 my-4 bg-gray-50">
-                        <h2 class="text-3xl font-black uppercase px-4">${menu}</h2>
+                        <h2 class="text-3xl font-black uppercase text-black px-4">${menu}</h2>
                     </div>
-                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl animate-pulse">
-                        <p class="text-amber-800 font-bold text-sm">📸 SCREENSHOT SEKARANG!</p>
-                        <p class="text-amber-700 text-[10px]">Tunjukkan ke kasir untuk klaim hadiahmu & Bawa temanmu untuk promo lainnya.</p>
-                    </div>
+                    <p class="text-amber-600 font-bold text-sm animate-pulse">📸 SCREENSHOT SEKARANG!</p>
                 </div>
             `;
         }
 
         function showFullPage() {
-            document.getElementById('user-card').innerHTML = `
-                <div class="p-10">
-                    <h2 class="text-4xl mb-4">🏃💨</h2>
-                    <h2 class="text-2xl font-bold">Yah, Terlambat!</h2>
-                    <p class="text-gray-500 text-sm mt-2 mb-8">Menu gratis dari barcode ini sudah habis, silahkan follow ig Sugiban Cafe jika ingin mendapatkan promo opening lainnya.</p>
-                    <a href="https://www.instagram.com/sugibancafe/" class="block w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg">FOLLOW IG SUGIBAN CAFE</a>
-                </div>
-            `;
+            document.getElementById('user-card').innerHTML = `<div class="p-10 text-center"><h2 class="text-2xl font-bold">Yah, Kuota Habis!</h2><p class="text-gray-500 mt-2 mb-8 text-sm">Ikuti konvoi kami ke titik selanjutnya!</p><a href="#" class="block w-full bg-black text-white py-4 rounded-xl font-bold">FOLLOW INSTAGRAM</a></div>`;
         }
+
+        // --- ADMIN FUNCTIONS ---
+        function initAdminMonitoring() {
+            db.ref('locations').on('value', (snap) => {
+                const data = snap.val();
+                const cont = document.getElementById('location-container');
+                cont.innerHTML = '';
+                if(data) {
+                    Object.keys(data).forEach(k => {
+                        cont.innerHTML += `
+                            <div class="p-4 bg-gray-50 rounded-xl border relative">
+                                <button onclick="deleteLocation('${k}')" class="absolute top-2 right-2 text-gray-300">×</button>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase">${k}</p>
+                                <p class="font-bold">${data[k].name}</p>
+                                <div class="flex items-end justify-between mt-2">
+                                    <h3 class="text-3xl font-mono">${data[k].count} <span class="text-xs text-gray-300">/ ${data[k].max}</span></h3>
+                                    <button onclick="resetCounter('${k}')" class="text-[10px] border px-2 py-1 rounded bg-white shadow-sm">RESET</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            });
+            db.ref('menus').on('value', (snap) => {
+                const m = snap.val();
+                const list = document.getElementById('menu-list');
+                list.innerHTML = '';
+                if(m) Object.keys(m).forEach(k => {
+                    list.innerHTML += `<li class="py-2 flex justify-between">${m[k]} <button onclick="deleteMenu('${k}')" class="text-red-400 text-xs tracking-tighter">HAPUS</button></li>`;
+                });
+            });
+        }
+
+        function addNewLocation() {
+            const n = prompt("Nama Lokasi:"), i = prompt("ID (titik1, titik2, dst):");
+            if(n && i) db.ref('locations/' + i).set({ name: n, count: 0, max: 10 });
+        }
+        function deleteLocation(i) { if(confirm('Hapus?')) db.ref('locations/' + i).remove(); }
+        function resetCounter(i) { if(confirm('Reset counter ke 0?')) { db.ref('locations/' + i + '/count').set(0); db.ref('scans/' + i).remove(); } }
+        function addMenu() { const v = document.getElementById('menu-input').value; if(v) { db.ref('menus').push(v); document.getElementById('menu-input').value = ''; } }
+        function deleteMenu(k) { db.ref('menus/' + k).remove(); }
     </script>
 </body>
 </html>
