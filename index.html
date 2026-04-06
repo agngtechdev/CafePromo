@@ -1,4 +1,65 @@
-<script>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sugiban Cafe - Promo System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+
+    <main id="admin-view" class="hidden p-4 max-w-6xl mx-auto">
+        <header class="bg-black text-white p-6 rounded-2xl mb-8 shadow-xl flex justify-between items-center">
+            <h1 class="font-black italic text-xl tracking-widest">SUGIBAN ADMIN PANEL</h1>
+            <div id="db-status" class="text-[10px] bg-green-500 px-2 py-1 rounded">CONNECTED</div>
+        </header>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="font-bold text-lg mb-4">Monitoring Realtime Titik Konvoi</h2>
+                    <div id="location-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <button onclick="addNewLocation()" class="w-full mt-4 border-2 border-dashed border-slate-300 py-3 rounded-xl text-slate-400 hover:text-black hover:border-black transition text-sm font-medium">+ Buat Titik Konvoi Baru</button>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="font-bold text-lg mb-4 text-red-600">Daftar Scan Masuk (Validasi Nama & IP)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="border-b text-slate-400">
+                                    <th class="py-2">Titik</th>
+                                    <th>Nama User</th>
+                                    <th>IP Address</th>
+                                    <th>Menu Didapat</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="log-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                <h2 class="font-bold text-lg mb-4">Pool Menu Hadiah</h2>
+                <div class="flex gap-2 mb-6">
+                    <input type="text" id="menu-input" class="flex-1 border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 ring-black" placeholder="Contoh: Es Kopi Susu">
+                    <button onclick="addMenu()" class="bg-black text-white px-4 py-2 rounded-xl text-sm font-bold">TAMBAH</button>
+                </div>
+                <ul id="menu-list" class="space-y-2"></ul>
+            </div>
+        </div>
+    </main>
+
+    <main id="user-view" class="hidden p-6 flex items-center justify-center min-h-screen">
+        <div id="user-card" class="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
+            </div>
+    </main>
+
+    <script>
     // PASTIKAN CONFIG FIREBASE SUDAH BENAR
     const firebaseConfig = {
         apiKey: "AIzaSyC8DUOY0lUMMAAhIGamREtV9GoQVnLwhfQ",
@@ -89,6 +150,9 @@
             }
         });
     }
+    // ... (Sisa fungsi showWinPage, initAdminMonitoring, dll tetap sama) ...
+
+
         function showWinPage(menu, name) {
             document.getElementById('user-card').innerHTML = `
                 <div class="bg-black p-4 text-white text-[10px] text-center tracking-[0.3em] font-bold">SUGIBAN CAFE</div>
