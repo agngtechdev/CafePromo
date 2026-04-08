@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sugiban Cafe - Limited Promo</title>
+    <title>Sugiban Cafe - Custom Limit Promo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -17,21 +17,21 @@
     <main id="admin-view" class="hidden p-4 max-w-4xl mx-auto">
         <header class="bg-black text-white p-6 rounded-2xl mb-8 shadow-xl flex justify-between items-center">
             <h1 class="font-black italic text-xl tracking-widest uppercase">Admin Sugiban</h1>
-            <div class="text-[10px] bg-green-500 px-2 py-1 rounded">SYSTEM ACTIVE</div>
+            <div class="text-[10px] bg-green-500 px-2 py-1 rounded font-bold">LIVE MODE</div>
         </header>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="font-bold text-lg mb-4">Titik Konvoi & Kuota</h2>
+                <h2 class="font-bold text-lg mb-4 text-slate-800">Manajemen Titik Konvoi</h2>
                 <div id="location-container" class="space-y-3"></div>
-                <button onclick="addNewLocation()" class="w-full mt-4 border-2 border-dashed border-slate-300 py-3 rounded-xl text-slate-400 hover:text-black hover:border-black transition text-sm">+ Tambah Titik Baru</button>
+                <button onclick="addNewLocation()" class="w-full mt-4 border-2 border-dashed border-slate-300 py-4 rounded-xl text-slate-400 hover:text-black hover:border-black transition text-sm font-bold uppercase tracking-wider">+ Tambah Titik Baru</button>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <h2 class="font-bold text-lg mb-4 text-orange-600">Pool Menu Hadiah</h2>
                 <div class="flex gap-2 mb-4">
-                    <input type="text" id="menu-input" class="flex-1 border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 ring-black" placeholder="Contoh: Es Kopi Susu">
-                    <button onclick="addMenu()" class="bg-black text-white px-4 py-2 rounded-xl text-sm font-bold">TAMBAH</button>
+                    <input type="text" id="menu-input" class="flex-1 border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 ring-black" placeholder="Nama Menu...">
+                    <button onclick="addMenu()" class="bg-black text-white px-6 py-2 rounded-xl text-sm font-bold">TAMBAH</button>
                 </div>
                 <ul id="menu-list" class="space-y-2"></ul>
             </div>
@@ -48,6 +48,7 @@
     </main>
 
     <script>
+    // --- FIREBASE CONFIG ---
     const firebaseConfig = {
         apiKey: "AIzaSyC8DUOY0lUMMAAhIGamREtV9GoQVnLwhfQ",
         authDomain: "gachamenu-b46e2.firebaseapp.com",
@@ -73,28 +74,25 @@
         }
     };
 
-    // --- LOGIKA USER DENGAN LIMIT 10 ---
+    // --- USER LOGIC ---
     function handleInstantClaim(cleanId) {
         const locRef = db.ref('locations/' + cleanId);
 
-        // Gunakan transaksi untuk menambah counter dengan aman
         locRef.transaction((loc) => {
             if (loc) {
                 let current = parseInt(loc.count) || 0;
-                let limit = parseInt(loc.max) || 10;
+                let limit = parseInt(loc.max) || 0;
 
                 if (current < limit) {
                     loc.count = current + 1;
                     return loc;
                 }
             }
-            return; // Gagalkan jika tidak ada titik atau kuota penuh
+            return; 
         }, (error, committed, snapshot) => {
             if (committed && snapshot.exists()) {
-                // Kuota tersedia, ambil menu acak
                 generateMenuResult(cleanId);
             } else {
-                // Kuota habis atau error
                 showFullPage();
             }
         });
@@ -102,23 +100,22 @@
 
     function generateMenuResult(cleanId) {
         db.ref('menus').once('value', (snap) => {
-            const menus = snap.exists() ? Object.values(snap.val()) : ["Kopi Susu"];
+            const menus = snap.exists() ? Object.values(snap.val()) : ["Menu Rahasia"];
             const randomMenu = menus[Math.floor(Math.random() * menus.length)];
-            
             const adminWA = "6282299967112";
             const pesan = encodeURIComponent(`Halo kak, saya mendapatkan menu : ${randomMenu}`);
             
             document.getElementById('user-card').innerHTML = `
                 <div class="bg-black p-4 text-white text-[10px] text-center tracking-[0.3em] font-bold uppercase">Sugiban Cafe</div>
                 <div class="p-10 text-center">
-                    <p class="text-xs text-slate-400 uppercase font-bold mb-2 tracking-tighter">Selamat! Kamu Mendapatkan:</p>
+                    <p class="text-xs text-slate-400 uppercase font-bold mb-2 tracking-tighter text-black/50">YAY! HADIAHMU ADALAH:</p>
                     <div class="bg-slate-50 border-4 border-double border-slate-200 rounded-3xl py-10 mb-6 px-4">
-                        <h2 class="text-3xl font-black uppercase leading-tight">${randomMenu}</h2>
+                        <h2 class="text-3xl font-black uppercase leading-tight text-black">${randomMenu}</h2>
                     </div>
-                    <a href="https://wa.me/${adminWA}?text=${pesan}" class="w-full bg-green-500 hover:bg-green-600 text-white font-black py-5 rounded-2xl shadow-lg transition flex items-center justify-center gap-3">
+                    <a href="https://wa.me/${adminWA}?text=${pesan}" class="w-full bg-green-500 hover:bg-green-600 text-white font-black py-5 rounded-2xl shadow-lg transition flex items-center justify-center gap-3 active:scale-95">
                         <span>KLAIM VIA WHATSAPP</span>
                     </a>
-                    <p class="text-[9px] text-slate-400 mt-6 uppercase font-bold tracking-widest leading-loose">Screenshot & kirim chat di atas <br> untuk memvalidasi hadiahmu!</p>
+                    <p class="text-[9px] text-slate-400 mt-6 uppercase font-bold tracking-widest leading-loose">Segera klaim hadiahmu sebelum <br> kuota titik ini benar-benar habis!</p>
                 </div>`;
         });
     }
@@ -128,11 +125,11 @@
             <div class="p-12 text-center">
                 <h2 class="text-5xl mb-6">🏃‍♂️</h2>
                 <h2 class="text-2xl font-black uppercase tracking-tighter">Kuota Habis!</h2>
-                <p class="text-slate-500 mt-4 text-sm leading-relaxed">Maaf, promo di titik ini sudah terpenuhi (Max 10). Ikuti konvoi ke titik selanjutnya!</p>
+                <p class="text-slate-500 mt-4 text-sm leading-relaxed">Wah telat! Kuota promo untuk titik ini sudah habis terjual.</p>
             </div>`;
     }
 
-    // --- LOGIKA ADMIN ---
+    // --- ADMIN LOGIC ---
     function initAdminMonitoring() {
         db.ref('locations').on('value', (snap) => {
             const data = snap.val();
@@ -140,15 +137,15 @@
             cont.innerHTML = '';
             if(data) Object.keys(data).forEach(k => {
                 cont.innerHTML += `
-                    <div class="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-end group">
+                    <div class="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-end">
                         <div>
-                            <p class="text-[10px] font-black text-blue-500 uppercase">ID: ${k}</p>
-                            <p class="font-bold text-slate-800">${data[k].name}</p>
-                            <h3 class="text-3xl font-black mt-2">${data[k].count || 0}<span class="text-xs text-slate-300 font-normal ml-1">/ ${data[k].max || 10}</span></h3>
+                            <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest">ID: ${k}</p>
+                            <p class="font-bold text-slate-800 text-lg">${data[k].name}</p>
+                            <h3 class="text-4xl font-black mt-1">${data[k].count || 0}<span class="text-sm text-slate-300 font-normal ml-1 tracking-normal">/ ${data[k].max || 0}</span></h3>
                         </div>
                         <div class="flex flex-col gap-2">
-                            <button onclick="resetCounter('${k}')" class="text-[9px] font-bold bg-white border px-2 py-1 rounded shadow-sm hover:text-red-500">RESET</button>
-                            <button onclick="deleteLocation('${k}')" class="text-[9px] font-bold text-slate-300 hover:text-red-500">HAPUS</button>
+                            <button onclick="resetCounter('${k}')" class="text-[9px] font-bold bg-white border px-3 py-2 rounded-lg shadow-sm hover:text-red-500 transition">RESET</button>
+                            <button onclick="deleteLocation('${k}')" class="text-[9px] font-bold text-slate-300 hover:text-red-500 transition">HAPUS</button>
                         </div>
                     </div>`;
             });
@@ -159,17 +156,31 @@
             const list = document.getElementById('menu-list');
             list.innerHTML = '';
             if(m) Object.keys(m).forEach(k => {
-                list.innerHTML += `<li class="flex justify-between items-center bg-slate-50 p-3 rounded-xl text-xs font-bold uppercase">${m[k]} <button onclick="deleteMenu('${k}')" class="text-red-400">X</button></li>`;
+                list.innerHTML += `<li class="flex justify-between items-center bg-slate-50 p-3 rounded-xl text-xs font-bold uppercase text-slate-700">${m[k]} <button onclick="deleteMenu('${k}')" class="text-red-400 font-black px-2 hover:scale-125 transition">X</button></li>`;
             });
         });
     }
 
     function addNewLocation() {
-        const n = prompt("Nama Titik (misal: Pettarani):"), i = prompt("ID URL (misal: ptt1):");
-        if(n && i) db.ref('locations/' + i.toLowerCase().trim()).set({ name: n, count: 0, max: 10 });
+        const name = prompt("Nama Lokasi (Bebas):");
+        const id = prompt("ID URL (Satu kata, misal: boulevard):");
+        const max = prompt("Kapasitas/Kuota (Hanya Angka, misal: 25):");
+
+        if(name && id && max) {
+            // Validasi agar max adalah angka
+            const maxInt = parseInt(max);
+            if(isNaN(maxInt)) return alert("Kuota harus berupa angka!");
+
+            db.ref('locations/' + id.toLowerCase().trim()).set({ 
+                name: name, 
+                count: 0, 
+                max: maxInt 
+            });
+        }
     }
-    function resetCounter(id) { if(confirm('Nolkan kembali hitungan?')) db.ref('locations/' + id + '/count').set(0); }
-    function deleteLocation(id) { if(confirm('Hapus titik?')) db.ref('locations/' + id).remove(); }
+
+    function resetCounter(id) { if(confirm('Nolkan kembali hitungan untuk titik ini?')) db.ref('locations/' + id + '/count').set(0); }
+    function deleteLocation(id) { if(confirm('Hapus titik ini secara permanen?')) db.ref('locations/' + id).remove(); }
     function addMenu() { const v = document.getElementById('menu-input').value; if(v) { db.ref('menus').push(v); document.getElementById('menu-input').value = ''; } }
     function deleteMenu(k) { db.ref('menus/' + k).remove(); }
     </script>
